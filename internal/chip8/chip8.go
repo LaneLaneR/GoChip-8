@@ -37,3 +37,5 @@ type Chip8 struct {
 	Display [32][64]byte
 	Keys    [16]bool
 }
+
+const VF = 0x000F

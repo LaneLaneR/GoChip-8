@@ -1,6 +1,9 @@
 package chip8
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+)
 
 /*
  * Инструкция 16 бит хранится в 2 байтах памяти
@@ -58,9 +61,8 @@ func (c *Chip8) execOpcode(opcode uint16) error {
 	case 0x1000: // JMP NNN безусловный переход
 		c.PC = opcode & 0x0FFF // Отбрасываем старшие 4 бита, получая 12 битный адрес и отдаем его PC
 	case 0x2000: // CALL NNN условный переход
-		if int(c.SP) >= len(c.Stack) {
-			err := fmt.Errorf("Стэк переполнен")
-			return err
+		if c.SP >= byte(len(c.Stack)) {
+			return fmt.Errorf("Стэк переполнен")
 		}
 		c.Stack[c.SP] = c.PC
 		c.SP++
@@ -99,6 +101,39 @@ func (c *Chip8) execOpcode(opcode uint16) error {
 		if c.V[x] != c.V[y] {
 			c.PC += 2
 		}
+	case 0xA000:
+		c.I = opcode & 0x0FFF
+	case 0xB000:
+		c.PC = (opcode & 0x0FFF) + uint16(c.V[0])
+	case 0xC000:
+		x := ((opcode & 0x0F00) >> 8)
+		k := byte(opcode & 0x00FF)
+		c.V[x] = byte(rand.Intn(256)) & k
+	case 0xD000:
+		x := int(c.V[(opcode&0x0F00)>>8])
+		y := int(c.V[(opcode&0x00F0)>>4])
+		n := int(opcode & 0x000F)
+
+		c.V[VF] = 0 // Сброс флага коллизии
+
+		for row := range n { // Идем по строкам спрайта
+			sprite := c.Memory[int(c.I)+row] // Берем строку из памяти
+
+			for col := range 8 { // Цикл по горизонтали восьми пикселей
+				pixel := (sprite >> (7 - col)) & 1 // Сдвигаем нужный бит в конец берем только 0 или 1 получаем пиксель
+
+				if pixel == 1 { // Если пиксель равен единице
+					xx := (x + col) % 64 // x + col > движение по ширине
+					yy := (y + row) % 32 // y + col > движение по высоте
+					// На проценты можно не смотреть, это на случай, что если символ выйдет за границы
+					// То он вернется назад ибо поделится с остатком на 64 или 32
+
+					if c.IO.DrawPixel(xx, yy, true) {
+						c.V[VF] = 1
+					}
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -117,11 +152,13 @@ func (c *Chip8) eightOpcode(opcode uint16) {
 	case 0x0003: // XOR Исключающее ИЛИ
 		c.V[x] = c.V[x] ^ c.V[y]
 	case 0x0004:
-		c.V[x] = c.V[x] + c.V[y]
-		if c.V[x] > 0x00FF {
+		sum := uint16(c.V[x] + c.V[y])
+
+		if sum > 0x00FF {
 			c.V[VF] = 1
 		}
-		c.V[VF] = 0
+
+		c.V[x] = byte(sum)
 	case 0x0005:
 		if c.V[x] >= c.V[y] {
 			c.V[VF] = 1
@@ -162,5 +199,7 @@ func (c *Chip8) zeroOpcode(opcode uint16) {
 	case 0x00EE:
 		c.SP--
 		c.PC = c.Stack[c.SP]
+	case 0x00E0:
+		c.IO.Clear()
 	}
 }

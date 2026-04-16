@@ -1,5 +1,9 @@
 package chip8
 
+import (
+	iosystem "github.com/LaneLaneR/GoChip-8/internal/ioSystem"
+)
+
 /*
  * Память в Chip-8 состоит из 4096 байт, 512 из которых зарезервированны
  *
@@ -34,8 +38,19 @@ type Chip8 struct {
 	Stack [16]uint16 // Стэк
 	SP    byte       // Показывает, сколько в стэке элементов
 
-	Display [32][64]byte
-	Keys    [16]bool
+	/* Display [32][64]bool
+	 * Keys    [16]bool
+	 */
+	IO *iosystem.IoChip8
 }
 
 const VF = 0x000F
+
+func NewChip8() *Chip8 {
+	tmp := Chip8{
+		IO: iosystem.NewIoChip8(&iosystem.CliIO{}),
+	}
+	tmp.LoadFont()
+
+	return &tmp
+}

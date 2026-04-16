@@ -2,15 +2,18 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/LaneLaneR/GoChip-8/internal/chip8"
 )
 
 func main() {
-	cpu8 := chip8.Chip8{}
+	rand.Seed(time.Now().UnixNano())
+	cpu8 := chip8.NewChip8()
+	cpu8.LoadFont()
 
-	if err := cpu8.LoadFromFile("rom.ch8"); err != nil {
+	if err := cpu8.LoadFromFile("mySnake.ch8"); err != nil {
 		panic(err)
 	}
 
@@ -29,11 +32,15 @@ func main() {
 		}
 		fmt.Println("")
 		fmt.Printf("SP = %d ", cpu8.SP)
-		fmt.Printf("PC = %d\n", cpu8.PC)
+		fmt.Printf("PC = %d ", cpu8.PC)
+		fmt.Printf("I = %X\n", cpu8.I)
 		fmt.Println("")
 		fmt.Printf("opcode:%X\n", opcode)
 		fmt.Println("")
+		fmt.Println("")
+		fmt.Println("")
+		cpu8.IO.Draw()
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(10 * time.Millisecond)
 	}
 }

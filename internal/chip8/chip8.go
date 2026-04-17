@@ -1,6 +1,9 @@
 package chip8
 
 import (
+	"fmt"
+	"time"
+
 	iosystem "github.com/LaneLaneR/GoChip-8/internal/ioSystem"
 )
 
@@ -45,6 +48,8 @@ type Chip8 struct {
 }
 
 const VF = 0x000F
+const FPS = 60
+const Hz = 540
 
 func NewChip8() *Chip8 {
 	tmp := Chip8{
@@ -53,4 +58,53 @@ func NewChip8() *Chip8 {
 	tmp.LoadFont()
 
 	return &tmp
+}
+
+func (cpu8 *Chip8) StartChip8(debug bool) error {
+	cpuTicker := time.NewTicker(time.Second / Hz)
+	renderTicker := time.NewTicker(time.Second / FPS)
+
+	defer func() {
+		cpuTicker.Stop()
+		renderTicker.Stop()
+	}()
+
+	for cpu8.PC >= 0x200 || cpu8.PC < 4096 {
+		select {
+		case <-cpuTicker.C:
+			err, opcode := cpu8.StepOpcode()
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			if debug {
+				cpu8.DebugPrint(opcode)
+			}
+		case <-renderTicker.C:
+			if cpu8.DelayTimer > 0 { // Каждый такт этот таймер уменьшается
+				cpu8.DelayTimer--
+			}
+			if cpu8.SoundTimer > 0 { // Каждый такт этот таймер уменьшается
+				cpu8.SoundTimer--
+			}
+			cpu8.IO.Draw()
+		}
+	}
+
+	return nil
+}
+
+func (c *Chip8) DebugPrint(opcode uint16) {
+	for i := 0; i <= 15; i++ {
+		fmt.Printf("V%X = %d ", i, c.V[i])
+		fmt.Printf("S%X = %X\n", i, c.Stack[i])
+	}
+	fmt.Println("")
+	fmt.Printf("SP = %d ", c.SP)
+	fmt.Printf("PC = %d ", c.PC)
+	fmt.Printf("I = %X\n", c.I)
+	fmt.Println("")
+	fmt.Printf("opcode:%X\n", opcode)
+	fmt.Println("")
+	fmt.Println("")
+	fmt.Println("")
 }

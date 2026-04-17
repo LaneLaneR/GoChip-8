@@ -16,7 +16,7 @@ func (c *CliIO) Clear() {
 }
 
 func (c *CliIO) Draw() {
-	fmt.Print("\033[H\033[2J")
+	fmt.Print("\033[2J\033[H")
 	for y, _ := range c.Display {
 		for _, b := range c.Display[y] {
 			if b {

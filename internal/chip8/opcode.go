@@ -203,3 +203,49 @@ func (c *Chip8) zeroOpcode(opcode uint16) {
 		c.IO.Clear()
 	}
 }
+
+func (c *Chip8) fOpcode(opcode uint16) {
+	x := ((opcode & 0x0F00) >> 8)
+
+	switch opcode & 0x00FF {
+	case 0x0007:
+		c.V[x] = c.DelayTimer
+	case 0x000A:
+	case 0x0015:
+		c.DelayTimer = c.V[x]
+	case 0x0018:
+		c.SoundTimer = c.V[x]
+	case 0x001E:
+		sum := c.I + uint16(c.V[x])
+		c.I = sum
+	case 0x0029:
+		c.I = 0x050 + (5 * uint16(c.V[x]))
+	case 0x0033:
+		integer := c.V[x]
+		hundrets := integer / 100
+		teens := (integer - (hundrets * 100)) / 10
+		ones := integer - (hundrets * 100) - (teens * 10)
+		c.Memory[c.I] = hundrets
+		c.Memory[c.I+1] = teens
+		c.Memory[c.I+2] = ones
+	case 0x0055:
+		// Modern Style
+		for i, _ := range c.V {
+			if i <= int(x) {
+				c.Memory[c.I+uint16(i)] = c.V[i]
+			} else {
+				break
+			}
+		}
+
+		// c.I += uint16(x) + 1
+	case 0x0065:
+		for i, _ := range c.V {
+			if i <= int(x) {
+				c.V[i] = c.Memory[c.I+uint16(i)]
+			} else {
+				break
+			}
+		}
+	}
+}

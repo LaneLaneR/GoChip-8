@@ -5,6 +5,7 @@ import (
 	"time"
 
 	iosystem "github.com/LaneLaneR/GoChip-8/internal/ioSystem"
+	"github.com/veandco/go-sdl2/sdl"
 )
 
 /*
@@ -49,7 +50,7 @@ type Chip8 struct {
 
 const VF = 0x000F
 const FPS = 60
-const Hz = 540
+const Hz = 1000
 
 func NewChip8() *Chip8 {
 	tmp := Chip8{
@@ -60,7 +61,7 @@ func NewChip8() *Chip8 {
 	return &tmp
 }
 
-func (cpu8 *Chip8) StartChip8(debug bool) error {
+func (cpu8 *Chip8) StartChip8() error {
 	cpuTicker := time.NewTicker(time.Second / Hz)
 	renderTicker := time.NewTicker(time.Second / FPS)
 
@@ -80,15 +81,53 @@ func (cpu8 *Chip8) StartChip8(debug bool) error {
 		select {
 		case <-cpuTicker.C:
 			cpu8.StepOpcode()
-			/* if debug {
-			cpu8.DebugPrint(opcode)
-			} */
 		case <-renderTicker.C:
 			if cpu8.DelayTimer > 0 { // Каждый такт этот таймер уменьшается
 				cpu8.DelayTimer--
 			}
 			if cpu8.SoundTimer > 0 { // Каждый такт этот таймер уменьшается
+				cpu8.IO.Play()
 				cpu8.SoundTimer--
+			} else {
+				sdl.ClearQueuedAudio(cpu8.IO.DeviceID)
+			}
+			cpu8.IO.Draw()
+		}
+	}
+
+	return nil
+}
+
+func (cpu8 *Chip8) StartDebugChip8() error {
+	cpuTicker := time.NewTicker(time.Second / Hz)
+	renderTicker := time.NewTicker(time.Second / FPS)
+
+	defer func() {
+		cpuTicker.Stop()
+		renderTicker.Stop()
+	}()
+
+	if err := cpu8.IO.Init(); err != nil {
+		panic(err)
+	}
+
+	for cpu8.PC >= 0x200 && cpu8.PC < 4096 {
+		cpu8.IO.PollEvents()
+		cpu8.IO.UpdateKeys()
+
+		select {
+		case <-cpuTicker.C:
+			opcode, _ := cpu8.StepOpcode()
+			cpu8.DebugPrint(opcode)
+		case <-renderTicker.C:
+			if cpu8.DelayTimer > 0 { // Каждый такт этот таймер уменьшается
+				cpu8.DelayTimer--
+			}
+			if cpu8.SoundTimer > 0 { // Каждый такт этот таймер уменьшается
+				cpu8.IO.Play()
+				cpu8.SoundTimer--
+			} else {
+				sdl.ClearQueuedAudio(cpu8.IO.DeviceID) // Функция для очистки очереди на воспрозводство звука
 			}
 			cpu8.IO.Draw()
 		}
@@ -106,6 +145,9 @@ func (c *Chip8) DebugPrint(opcode uint16) {
 	fmt.Printf("SP = %d ", c.SP)
 	fmt.Printf("PC = %d ", c.PC)
 	fmt.Printf("I = %X\n", c.I)
+	fmt.Println("")
+	fmt.Printf("Delay Timer = %d ", c.DelayTimer)
+	fmt.Printf("Sound Timer = %d\n", c.SoundTimer)
 	fmt.Println("")
 	fmt.Printf("opcode:%X\n", opcode)
 	fmt.Println("")

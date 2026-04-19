@@ -18,14 +18,14 @@ import (
  * 0x1234
  */
 
-func (c *Chip8) StepOpcode() (error, uint16) {
+func (c *Chip8) StepOpcode() (uint16, error) {
 	opcode := c.getOpcode()
 
 	c.PC += 2
 
 	err := c.execOpcode(opcode)
 
-	return err, opcode
+	return opcode, err
 }
 
 func (c *Chip8) getOpcode() uint16 {

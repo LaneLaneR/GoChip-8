@@ -36,9 +36,11 @@ type IoSDL struct {
 	Rendered *sdl.Renderer
 	Texture  *sdl.Texture
 	//		 X   Y
-	Display [64 * 32]bool
-	Pixels  [64 * 32]uint32
-	Keys    [16]bool
+	Display  [64 * 32]bool
+	Pixels   []uint32
+	Keys     [16]bool
+	DeviceID sdl.AudioDeviceID
+	Beep     []byte
 
 	Scale    int
 	DrawFlag bool
@@ -53,8 +55,8 @@ func (io *IoSDL) Init() error {
 	io.Scale = 20
 	xScale := int32(64 * io.Scale)
 	yScale := int32(32 * io.Scale)
-
-	io.Window, err = sdl.CreateWindow("chip8", sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED,
+	io.Pixels = make([]uint32, 64*32)
+	io.Window, err = sdl.CreateWindow("GoChip-8", sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED,
 		xScale, yScale, sdl.WINDOW_SHOWN)
 	if err != nil {
 		return err
@@ -70,9 +72,22 @@ func (io *IoSDL) Init() error {
 		sdl.TEXTUREACCESS_STREAMING,
 		64, 32,
 	)
+
+	spec := sdl.AudioSpec{
+		Freq:     44100,
+		Format:   sdl.AUDIO_S16SYS,
+		Channels: 1,
+		Samples:  4096,
+	}
+
+	io.DeviceID, err = sdl.OpenAudioDevice("", false, &spec, nil, 0)
 	if err != nil {
 		return err
 	}
+
+	sdl.PauseAudioDevice(io.DeviceID, false)
+
+	io.GenerateBeep()
 
 	return nil
 }
@@ -165,4 +180,34 @@ func (io *IoSDL) PollEvents() { // Проверка на закрытие
 			os.Exit(0)
 		}
 	}
+}
+
+func (io *IoSDL) GenerateBeep() {
+	samples := 44100 * 100 / 1000     // 4410 Сэмплов в секунду
+	buffer := make([]byte, samples*2) // Создаем сам звук
+
+	freq := 440.0                   // Частота звука
+	period := float64(44100) / freq // Сколько сэмплов занимает один сэмпл волны
+
+	high := int16(3000) // Перепады
+	low := int16(-3000)
+
+	for i := 0; i < samples; i++ {
+		var value int16 // Присваиваем значение
+
+		if int(float64(i)/period)%2 == 0 { // Показывает, в какой части периода мы сейчас
+			value = high
+		} else {
+			value = low
+		}
+
+		buffer[i*2] = byte(value)
+		buffer[i*2+1] = byte(value >> 8) // Мы делим 16 битной число на два 8 битных
+	}
+
+	io.Beep = buffer
+}
+
+func (io *IoSDL) Play() {
+	sdl.QueueAudio(io.DeviceID, io.Beep) // Запускаем Beep на нашем аудиодевайсе
 }

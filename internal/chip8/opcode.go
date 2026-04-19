@@ -29,7 +29,7 @@ func (c *Chip8) StepOpcode() (error, uint16) {
 }
 
 func (c *Chip8) getOpcode() uint16 {
-	if int(c.PC)+1 >= len(c.Memory) {
+	if int(c.PC) >= len(c.Memory) {
 		panic("PC выходит за границу")
 	}
 
@@ -116,10 +116,10 @@ func (c *Chip8) execOpcode(opcode uint16) error {
 
 		c.V[VF] = 0 // Сброс флага коллизии
 
-		for row := range n { // Идем по строкам спрайта
+		for row := 0; row < n; row++ { // Идем по строкам спрайта
 			sprite := c.Memory[int(c.I)+row] // Берем строку из памяти, она хранится в формате 0 и 1
 
-			for col := range 8 { // Цикл по горизонтали восьми пикселей
+			for col := 0; col < 8; col++ { // Цикл по горизонтали восьми пикселей
 				pixel := (sprite >> (7 - col)) & 1 // Сдвигаем нужный бит в конец берем единичку и получаем пиксель
 
 				if pixel == 1 { // Если пиксель равен единице
@@ -128,12 +128,16 @@ func (c *Chip8) execOpcode(opcode uint16) error {
 					// На проценты можно не смотреть, это на случай, что если символ выйдет за границы
 					// То он вернется назад ибо поделится с остатком на 64 или 32
 
-					if c.IO.DrawPixel(xx, yy, true) {
+					if c.IO.PixelUpdate(xx, yy, true) {
 						c.V[VF] = 1
 					}
 				}
 			}
 		}
+	case 0xE000:
+		c.eOpcode(opcode)
+	case 0xF000:
+		c.fOpcode(opcode)
 	}
 	return nil
 }
@@ -178,13 +182,11 @@ func (c *Chip8) eightOpcode(opcode uint16) {
 	case 0x0007:
 		if c.V[x] >= c.V[y] {
 			c.V[VF] = 1
-		} else {
-			c.V[VF] = 0
 		}
 
 		c.V[x] = c.V[y] - c.V[x]
 	case 0x000E:
-		if c.V[x]&0x0001 == 0x0001 {
+		if c.V[x]&0x80 != 0 {
 			c.V[VF] = 1
 		} else {
 			c.V[VF] = 0
@@ -204,13 +206,31 @@ func (c *Chip8) zeroOpcode(opcode uint16) {
 	}
 }
 
-func (c *Chip8) fOpcode(opcode uint16) {
+func (c *Chip8) eOpcode(opcode uint16) {
+	x := int((opcode & 0x0F00) >> 8)
+
+	switch opcode & 0x00FF {
+	case 0x009E:
+		if c.IO.GetKey(x) {
+			c.PC += 2
+		}
+
+	case 0x00A1:
+		if !c.IO.GetKey(x) {
+			c.PC += 2
+		}
+	}
+}
+
+func (c *Chip8) fOpcode(opcode uint16) error {
 	x := ((opcode & 0x0F00) >> 8)
 
 	switch opcode & 0x00FF {
 	case 0x0007:
 		c.V[x] = c.DelayTimer
 	case 0x000A:
+		key := c.IO.WaitKeyPress()
+		c.V[x] = byte(key)
 	case 0x0015:
 		c.DelayTimer = c.V[x]
 	case 0x0018:
@@ -248,4 +268,6 @@ func (c *Chip8) fOpcode(opcode uint16) {
 			}
 		}
 	}
+
+	return nil
 }

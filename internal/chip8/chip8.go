@@ -44,7 +44,7 @@ type Chip8 struct {
 	/* Display [32][64]bool
 	 * Keys    [16]bool
 	 */
-	IO *iosystem.IoChip8
+	IO *iosystem.IoSDL
 }
 
 const VF = 0x000F
@@ -53,7 +53,7 @@ const Hz = 540
 
 func NewChip8() *Chip8 {
 	tmp := Chip8{
-		IO: iosystem.NewIoChip8(&iosystem.CliIO{}),
+		IO: &iosystem.IoSDL{},
 	}
 	tmp.LoadFont()
 
@@ -69,16 +69,20 @@ func (cpu8 *Chip8) StartChip8(debug bool) error {
 		renderTicker.Stop()
 	}()
 
-	for cpu8.PC >= 0x200 || cpu8.PC < 4096 {
+	if err := cpu8.IO.Init(); err != nil {
+		panic(err)
+	}
+
+	for cpu8.PC >= 0x200 && cpu8.PC < 4096 {
+		cpu8.IO.PollEvents()
+		cpu8.IO.UpdateKeys()
+
 		select {
 		case <-cpuTicker.C:
-			err, opcode := cpu8.StepOpcode()
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			if debug {
-				cpu8.DebugPrint(opcode)
-			}
+			cpu8.StepOpcode()
+			/* if debug {
+			cpu8.DebugPrint(opcode)
+			} */
 		case <-renderTicker.C:
 			if cpu8.DelayTimer > 0 { // Каждый такт этот таймер уменьшается
 				cpu8.DelayTimer--

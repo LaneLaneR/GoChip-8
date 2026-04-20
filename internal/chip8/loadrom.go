@@ -21,7 +21,7 @@ func (c *Chip8) LoadROM(rom []byte) error {
 func (c *Chip8) LoadFromFile(path string) error {
 	rom, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("Вы передали некорректный путь: %w", err)
 	}
 
 	return c.LoadROM(rom)

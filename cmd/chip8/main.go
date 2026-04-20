@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"math/rand"
 	"os"
@@ -11,15 +10,17 @@ import (
 )
 
 func main() {
+	if len(os.Args) <= 1 {
+		fmt.Println("Вы не передали никакого значения")
+		return
+	}
 	rand.Seed(time.Now().UnixNano())
 	cpu8 := chip8.NewChip8()
 	cpu8.LoadFont()
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Print("Введите путь к рому CHIP-8: ")
-	scanner.Scan()
-	text := scanner.Text()
+	text := os.Args[1]
 	if err := cpu8.LoadFromFile(text); err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	cpu8.StartChip8()

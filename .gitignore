@@ -1,2 +1,3 @@
 *.ch8
 SDL2.dll
+chip8-test-suite/

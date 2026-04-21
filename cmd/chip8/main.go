@@ -15,7 +15,7 @@ func main() {
 	var text string
 
 	hz := flag.Int("hz", 1000, "Hz to CPU")
-	debug := flag.Bool("debug", false, "Debug chip-8")
+	debug := flag.Bool("debug", false, "Debug GoChip-8")
 
 	flag.Parse()
 

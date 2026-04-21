@@ -50,7 +50,6 @@ type Chip8 struct {
 
 const VF = 0x000F
 const FPS = 60
-const Hz = 1000
 
 func NewChip8() *Chip8 {
 	tmp := Chip8{
@@ -61,8 +60,8 @@ func NewChip8() *Chip8 {
 	return &tmp
 }
 
-func (cpu8 *Chip8) StartChip8() error {
-	cpuTicker := time.NewTicker(time.Second / Hz)
+func (cpu8 *Chip8) StartChip8(hz int) error {
+	cpuTicker := time.NewTicker(time.Second / time.Duration(hz))
 	renderTicker := time.NewTicker(time.Second / FPS)
 
 	defer func() {
@@ -98,8 +97,8 @@ func (cpu8 *Chip8) StartChip8() error {
 	return nil
 }
 
-func (cpu8 *Chip8) StartDebugChip8() error {
-	cpuTicker := time.NewTicker(time.Second / Hz)
+func (cpu8 *Chip8) StartDebugChip8(hz int) error {
+	cpuTicker := time.NewTicker(time.Second / time.Duration(hz))
 	renderTicker := time.NewTicker(time.Second / FPS)
 
 	defer func() {

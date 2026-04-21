@@ -208,15 +208,16 @@ func (c *Chip8) zeroOpcode(opcode uint16) {
 
 func (c *Chip8) eOpcode(opcode uint16) {
 	x := int((opcode & 0x0F00) >> 8)
+	vx := int(c.V[x])
 
 	switch opcode & 0x00FF {
 	case 0x009E:
-		if c.IO.GetKey(x) {
+		if c.IO.GetKey(vx) {
 			c.PC += 2
 		}
 
 	case 0x00A1:
-		if !c.IO.GetKey(x) {
+		if !c.IO.GetKey(vx) {
 			c.PC += 2
 		}
 	}

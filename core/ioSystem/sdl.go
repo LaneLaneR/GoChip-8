@@ -36,14 +36,16 @@ type IoSDL struct {
 	Rendered *sdl.Renderer
 	Texture  *sdl.Texture
 	//		 X   Y
-	Display  [64 * 32]bool
-	Pixels   []uint32
-	Keys     [16]bool
-	DeviceID sdl.AudioDeviceID
-	Beep     []byte
+	HighDisplay [128 * 64]bool
+	LowDisplay  [64 * 32]bool
+	Pixels      []uint32
+	Keys        [16]bool
+	DeviceID    sdl.AudioDeviceID
+	Beep        []byte
 
 	Scale    int
 	DrawFlag bool
+	HighMode bool
 }
 
 func (io *IoSDL) Init() error {
@@ -55,7 +57,7 @@ func (io *IoSDL) Init() error {
 	io.Scale = 20
 	xScale := int32(64 * io.Scale)
 	yScale := int32(32 * io.Scale)
-	io.Pixels = make([]uint32, 64*32)
+	io.Pixels = make([]uint32, 32*64)
 	io.Window, err = sdl.CreateWindow("GoChip-8", sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED,
 		xScale, yScale, sdl.WINDOW_SHOWN)
 	if err != nil {
@@ -98,15 +100,29 @@ func (io *IoSDL) Draw() error {
 	}
 	io.DrawFlag = false
 
-	for i, _ := range io.Pixels {
-		if io.Display[i] {
-			io.Pixels[i] = 0xFFFFFFFF
-		} else {
-			io.Pixels[i] = 0x000000FF
+	if !io.HighMode {
+		for i := 0; i < 64*32; i++ {
+			if io.LowDisplay[i] {
+				io.Pixels[i] = 0xFFFFFFFF
+			} else {
+				io.Pixels[i] = 0x000000FF
+			}
+		}
+	} else {
+		for i := 0; i < 128*64; i++ {
+			if io.HighDisplay[i] {
+				io.Pixels[i] = 0xFFFFFFFF
+			} else {
+				io.Pixels[i] = 0x000000FF
+			}
 		}
 	}
 
-	io.Texture.Update(nil, unsafe.Pointer(&io.Pixels[0]), 64*4) // Нужен unsafe ибо нужен указатель на первый байт памяти в массиве
+	if !io.HighMode {
+		io.Texture.Update(nil, unsafe.Pointer(&io.Pixels[0]), 64*4) // Нужен unsafe ибо нужен указатель на первый байт памяти в массиве
+	} else {
+		io.Texture.Update(nil, unsafe.Pointer(&io.Pixels[0]), 128*4) // Нужен unsafe ибо нужен указатель на первый байт памяти в массиве
+	}
 	// 3 аргумент это количество байт в одной строке, один пиксель - 4 байта
 	//
 	io.Rendered.Copy(io.Texture, nil, nil) // Копируем текстуру в рендер
@@ -115,17 +131,31 @@ func (io *IoSDL) Draw() error {
 }
 
 func (io *IoSDL) PixelUpdate(x int, y int, pixel bool) bool {
-	io.DrawFlag = true
-	if x < 0 || x >= 64 || y < 0 || y >= 32 {
-		return false // Если выходит за пределы
+	if !io.HighMode {
+		io.DrawFlag = true
+		if x < 0 || x >= 64 || y < 0 || y >= 32 {
+			return false // Если выходит за пределы
+		}
+
+		idx := x + y*64
+
+		collision := io.LowDisplay[idx] && pixel
+		io.LowDisplay[idx] = io.LowDisplay[idx] != pixel
+
+		return collision
+	} else {
+		io.DrawFlag = true
+		if x < 0 || x >= 128 || y < 0 || y >= 64 {
+			return false
+		}
+
+		idx := x + y*128
+
+		collision := io.HighDisplay[idx] && pixel
+		io.HighDisplay[idx] = io.HighDisplay[idx] != pixel
+
+		return collision
 	}
-
-	idx := x + y*64
-
-	collision := io.Display[idx] && pixel
-	io.Display[idx] = io.Display[idx] != pixel
-
-	return collision
 }
 
 func (io *IoSDL) DrawTrue() error {
@@ -137,8 +167,8 @@ func (io *IoSDL) DrawTrue() error {
 }
 
 func (io *IoSDL) Clear() {
-	for i, _ := range io.Display {
-		io.Display[i] = false
+	for i, _ := range io.LowDisplay {
+		io.LowDisplay[i] = false
 	}
 }
 
@@ -210,4 +240,111 @@ func (io *IoSDL) GenerateBeep() {
 
 func (io *IoSDL) Play() {
 	sdl.QueueAudio(io.DeviceID, io.Beep) // Запускаем Beep на нашем аудиодевайсе
+}
+
+func (io *IoSDL) ModeHigh() {
+	io.DrawFlag = true
+	io.HighMode = true
+	io.Texture.Destroy()
+	io.Rendered.Clear()
+	io.Pixels = make([]uint32, 128*64)
+
+	io.Texture, _ = io.Rendered.CreateTexture(
+		sdl.PIXELFORMAT_RGBA8888,
+		sdl.TEXTUREACCESS_STREAMING,
+		128, 64,
+	)
+	var tmp [64 * 32]bool
+	io.LowDisplay = tmp
+}
+
+func (io *IoSDL) ModeLow() {
+	io.DrawFlag = true
+	io.HighMode = false
+	io.Texture.Destroy()
+	io.Rendered.Clear()
+	io.Pixels = make([]uint32, 32*64)
+
+	io.Texture, _ = io.Rendered.CreateTexture(
+		sdl.PIXELFORMAT_RGBA8888,
+		sdl.TEXTUREACCESS_STREAMING,
+		64, 32,
+	)
+	var tmp [128 * 64]bool
+	io.HighDisplay = tmp
+}
+
+func (io *IoSDL) GetHighMode() bool {
+	return io.HighMode
+}
+
+func (io *IoSDL) ScrollDown(n int) {
+	io.DrawFlag = true
+	if !io.HighMode {
+		if n <= 0 || n >= 32 {
+			return
+		}
+		var tmp [64 * 32]bool
+		for i := 0; i < len(io.LowDisplay)-64*n; i++ {
+			tmp[i+64*n] = io.LowDisplay[i]
+		}
+
+		io.LowDisplay = tmp
+	} else {
+		if n <= 0 || n >= 64 {
+			return
+		}
+		var tmp [128 * 64]bool
+		for i := 0; i < len(io.HighDisplay)-128*n; i++ {
+			tmp[i+128*n] = io.HighDisplay[i]
+		}
+
+		io.HighDisplay = tmp
+	}
+}
+
+func (io *IoSDL) ScrollRight() {
+	io.DrawFlag = true
+	if !io.HighMode {
+		var tmp [64 * 32]bool
+		for y := 0; y < 32; y++ {
+			for x := 0; x < 64-2; x++ {
+				tmp[y*64+(x+2)] = io.LowDisplay[y*64+x]
+			}
+		}
+
+		io.LowDisplay = tmp
+	} else {
+		var tmp [128 * 64]bool
+		for y := 0; y < 64; y++ {
+			for x := 0; x < 128-4; x++ {
+				tmp[y*128+(x+4)] = io.HighDisplay[y*128+x]
+			}
+		}
+
+		io.HighDisplay = tmp
+	}
+}
+
+func (io *IoSDL) ScrollLeft() {
+	io.DrawFlag = true
+	if !io.HighMode {
+		var tmp [64 * 32]bool
+		for y := 0; y < 32; y++ {
+			for x := 2; x < 66-2; x++ {
+				tmp[y*64+(x-2)] = io.LowDisplay[y*64+x]
+			}
+		}
+
+		io.LowDisplay = tmp
+	} else {
+		var tmp [128 * 64]bool
+		for y := 0; y < 64; y++ {
+			for x := 4; x < 132-4; x++ {
+				tmp[y*128+(x-4)] = io.HighDisplay[y*128+x]
+			}
+		}
+
+		io.HighDisplay = tmp
+	}
 }

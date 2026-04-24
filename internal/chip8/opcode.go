@@ -3,6 +3,7 @@ package chip8
 import (
 	"fmt"
 	"math/rand"
+	"os"
 )
 
 /*
@@ -110,30 +111,7 @@ func (c *Chip8) execOpcode(opcode uint16) error {
 		k := byte(opcode & 0x00FF)
 		c.V[x] = byte(rand.Intn(256)) & k
 	case 0xD000:
-		x := int(c.V[(opcode&0x0F00)>>8])
-		y := int(c.V[(opcode&0x00F0)>>4])
-		n := int(opcode & 0x000F)
-
-		c.V[VF] = 0 // Сброс флага коллизии
-
-		for row := 0; row < n; row++ { // Идем по строкам спрайта
-			sprite := c.Memory[int(c.I)+row] // Берем строку из памяти, она хранится в формате 0 и 1
-
-			for col := 0; col < 8; col++ { // Цикл по горизонтали восьми пикселей
-				pixel := (sprite >> (7 - col)) & 1 // Сдвигаем нужный бит в конец берем единичку и получаем пиксель
-
-				if pixel == 1 { // Если пиксель равен единице
-					xx := (x + col) % 64 // x + col > движение по ширине
-					yy := (y + row) % 32 // y + col > движение по высоте
-					// На проценты можно не смотреть, это на случай, что если символ выйдет за границы
-					// То он вернется назад ибо поделится с остатком на 64 или 32
-
-					if c.IO.PixelUpdate(xx, yy, true) {
-						c.V[VF] = 1
-					}
-				}
-			}
-		}
+		c.dOpcode(opcode)
 	case 0xE000:
 		c.eOpcode(opcode)
 	case 0xF000:
@@ -182,6 +160,8 @@ func (c *Chip8) eightOpcode(opcode uint16) {
 	case 0x0007:
 		if c.V[x] >= c.V[y] {
 			c.V[VF] = 1
+		} else {
+			c.V[VF] = 0
 		}
 
 		c.V[x] = c.V[y] - c.V[x]
@@ -197,12 +177,83 @@ func (c *Chip8) eightOpcode(opcode uint16) {
 }
 
 func (c *Chip8) zeroOpcode(opcode uint16) {
-	switch opcode {
-	case 0x00EE:
-		c.SP--
-		c.PC = c.Stack[c.SP]
+	switch opcode & 0x00F0 {
 	case 0x00E0:
-		c.IO.Clear()
+		switch opcode {
+		case 0x00EE:
+			if c.SP > 0 {
+				c.SP--
+			}
+			c.PC = c.Stack[c.SP]
+		case 0x00E0:
+			c.IO.Clear()
+		}
+	case 0x00C0:
+		n := int(opcode & 0x000F)
+		c.IO.ScrollDown(n)
+	case 0x00F0:
+		switch opcode & 0x000F {
+		case 0x000B:
+			c.IO.ScrollRight()
+		case 0x000C:
+			c.IO.ScrollLeft()
+		case 0x000D:
+			os.Exit(0)
+		case 0x000E:
+			c.IO.ModeHigh()
+		case 0x000F:
+			c.IO.ModeLow()
+		}
+	}
+}
+
+func (c *Chip8) dOpcode(opcode uint16) {
+	x := int(c.V[(opcode&0x0F00)>>8])
+	y := int(c.V[(opcode&0x00F0)>>4])
+
+	c.V[VF] = 0 // Сброс флага коллизии
+
+	if opcode&0x000F == 0x0000 {
+
+		for row := 0; row < 16; row++ {
+			addr := row * 2
+			sprite := uint16(c.Memory[int(c.I)+addr])<<8 | uint16(c.Memory[int(c.I)+1+addr])
+
+			for col := 0; col < 16; col++ {
+				pixel := (sprite >> (15 - col)) & 1
+
+				if pixel == 1 {
+					xx := (x + col) % 128
+					yy := (y + row) % 64
+
+					if c.IO.PixelUpdate(xx, yy, true) {
+						c.V[VF] = 1
+					}
+				}
+			}
+		}
+
+	} else {
+		n := int(opcode & 0x000F)
+
+		for row := 0; row < n; row++ { // Идем по строкам спрайта
+			sprite := c.Memory[int(c.I)+row] // Берем строку из памяти, она хранится в формате 0 и 1
+
+			for col := 0; col < 8; col++ { // Цикл по горизонтали восьми пикселей
+				pixel := (sprite >> (7 - col)) & 1 // Сдвигаем нужный бит в конец берем единичку и получаем пиксель
+
+				if pixel == 1 { // Если пиксель равен единице
+					xx := (x + col) % 64 // x + col > движение по ширине
+					yy := (y + row) % 32 // y + col > движение по высоте
+					// На проценты можно не смотреть, это на случай, что если символ выйдет за границы
+					// То он вернется назад ибо поделится с остатком на 64 или 32
+
+					if c.IO.PixelUpdate(xx, yy, true) {
+						c.V[VF] = 1
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -267,6 +318,20 @@ func (c *Chip8) fOpcode(opcode uint16) error {
 			} else {
 				break
 			}
+		}
+	case 0x0075:
+		if x > 7 {
+			x = 7
+		}
+		for i := 0; i <= int(x); i++ {
+			c.RPL[i] = c.V[i]
+		}
+	case 0x0085:
+		if x > 7 {
+			x = 7
+		}
+		for i := 0; i <= int(x); i++ {
+			c.V[i] = c.RPL[i]
 		}
 	}
 

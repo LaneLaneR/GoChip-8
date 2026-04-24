@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	iosystem "github.com/LaneLaneR/GoChip-8/internal/ioSystem"
+	iosystem "github.com/LaneLaneR/GoChip-8/core/ioSystem"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -41,6 +41,7 @@ type Chip8 struct {
 
 	Stack [16]uint16 // Стэк
 	SP    byte       // Показывает, сколько в стэке элементов
+	RPL   [8]byte
 
 	/* Display [32][64]bool
 	 * Keys    [16]bool
@@ -48,8 +49,10 @@ type Chip8 struct {
 	IO *iosystem.IoSDL
 }
 
-const VF = 0x000F
-const FPS = 60
+const (
+	VF  = 0x000F
+	FPS = 60
+)
 
 func NewChip8() *Chip8 {
 	tmp := Chip8{
@@ -150,6 +153,7 @@ func (c *Chip8) DebugPrint(opcode uint16) {
 	fmt.Println("")
 	fmt.Printf("opcode:%X\n", opcode)
 	fmt.Println("")
+	fmt.Printf("HighMod:%X\n", c.IO.GetHighMode())
 	fmt.Println("")
 	fmt.Println("")
 }

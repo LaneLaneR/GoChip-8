@@ -158,13 +158,15 @@ func (c *Chip8) eightOpcode(opcode uint16) {
 		// Modern style
 		c.V[x] = c.V[x] >> 1
 	case 0x0007:
-		if c.V[x] >= c.V[y] {
-			c.V[VF] = 1
+		var vf byte
+		if c.V[y] >= c.V[x] {
+			vf = 1
 		} else {
-			c.V[VF] = 0
+			vf = 0
 		}
 
 		c.V[x] = c.V[y] - c.V[x]
+		c.V[VF] = vf
 	case 0x000E:
 		if c.V[x]&0x80 != 0 {
 			c.V[VF] = 1
@@ -200,9 +202,9 @@ func (c *Chip8) zeroOpcode(opcode uint16) {
 		case 0x000D:
 			os.Exit(0)
 		case 0x000E:
-			c.IO.ModeHigh()
-		case 0x000F:
 			c.IO.ModeLow()
+		case 0x000F:
+			c.IO.ModeHigh()
 		}
 	}
 }
@@ -215,7 +217,7 @@ func (c *Chip8) dOpcode(opcode uint16) {
 
 	if opcode&0x000F == 0x0000 {
 
-		for row := 0; row < 16; row++ {
+		for row := 0; row < 16; row += 2 {
 			addr := row * 2
 			sprite := uint16(c.Memory[int(c.I)+addr])<<8 | uint16(c.Memory[int(c.I)+1+addr])
 
@@ -223,8 +225,8 @@ func (c *Chip8) dOpcode(opcode uint16) {
 				pixel := (sprite >> (15 - col)) & 1
 
 				if pixel == 1 {
-					xx := (x + col) % 128
-					yy := (y + row) % 64
+					xx := (x + col)
+					yy := (y + row)
 
 					if c.IO.PixelUpdate(xx, yy, true) {
 						c.V[VF] = 1
@@ -232,7 +234,6 @@ func (c *Chip8) dOpcode(opcode uint16) {
 				}
 			}
 		}
-
 	} else {
 		n := int(opcode & 0x000F)
 
@@ -243,8 +244,8 @@ func (c *Chip8) dOpcode(opcode uint16) {
 				pixel := (sprite >> (7 - col)) & 1 // Сдвигаем нужный бит в конец берем единичку и получаем пиксель
 
 				if pixel == 1 { // Если пиксель равен единице
-					xx := (x + col) % 64 // x + col > движение по ширине
-					yy := (y + row) % 32 // y + col > движение по высоте
+					xx := (x + col) // x + col > движение по ширине
+					yy := (y + row) // y + col > движение по высоте
 					// На проценты можно не смотреть, это на случай, что если символ выйдет за границы
 					// То он вернется назад ибо поделится с остатком на 64 или 32
 
@@ -310,7 +311,7 @@ func (c *Chip8) fOpcode(opcode uint16) error {
 			}
 		}
 
-		// c.I += uint16(x) + 1
+		c.I += uint16(x) + 1
 	case 0x0065:
 		for i, _ := range c.V {
 			if i <= int(x) {

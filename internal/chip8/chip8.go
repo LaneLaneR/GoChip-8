@@ -140,12 +140,12 @@ func (cpu8 *Chip8) StartDebugChip8(hz int) error {
 
 func (c *Chip8) DebugPrint(opcode uint16) {
 	for i := 0; i <= 15; i++ {
-		fmt.Printf("V%X = %d ", i, c.V[i])
+		fmt.Printf("V%X = %X ", i, c.V[i])
 		fmt.Printf("S%X = %X\n", i, c.Stack[i])
 	}
 	fmt.Println("")
-	fmt.Printf("SP = %d ", c.SP)
-	fmt.Printf("PC = %d ", c.PC)
+	fmt.Printf("SP = %X ", c.SP)
+	fmt.Printf("PC = %X ", c.PC)
 	fmt.Printf("I = %X\n", c.I)
 	fmt.Println("")
 	fmt.Printf("Delay Timer = %d ", c.DelayTimer)

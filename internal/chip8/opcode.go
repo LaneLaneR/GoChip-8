@@ -30,7 +30,7 @@ func (c *Chip8) StepOpcode() (uint16, error) {
 }
 
 func (c *Chip8) getOpcode() uint16 {
-	if int(c.PC) >= len(c.Memory) {
+	if int(c.PC)+1 >= len(c.Memory) {
 		panic("PC выходит за границу")
 	}
 
@@ -134,7 +134,7 @@ func (c *Chip8) eightOpcode(opcode uint16) {
 	case 0x0003: // XOR Исключающее ИЛИ
 		c.V[x] = c.V[x] ^ c.V[y]
 	case 0x0004:
-		sum := uint16(c.V[x] + c.V[y])
+		sum := uint16(c.V[x]) + uint16(c.V[y])
 
 		if sum > 0x00FF {
 			c.V[VF] = 1
@@ -217,7 +217,7 @@ func (c *Chip8) dOpcode(opcode uint16) {
 
 	if opcode&0x000F == 0x0000 {
 
-		for row := 0; row < 16; row += 2 {
+		for row := 0; row < 16; row++ {
 			addr := row * 2
 			sprite := uint16(c.Memory[int(c.I)+addr])<<8 | uint16(c.Memory[int(c.I)+1+addr])
 

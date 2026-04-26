@@ -167,6 +167,7 @@ func (io *IoSDL) DrawTrue() error {
 }
 
 func (io *IoSDL) Clear() {
+	io.DrawFlag = true
 	for i, _ := range io.LowDisplay {
 		io.LowDisplay[i] = false
 	}

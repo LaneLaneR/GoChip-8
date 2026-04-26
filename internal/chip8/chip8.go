@@ -153,7 +153,8 @@ func (c *Chip8) DebugPrint(opcode uint16) {
 	fmt.Println("")
 	fmt.Printf("opcode:%X\n", opcode)
 	fmt.Println("")
-	fmt.Printf("HighMod:%X\n", c.IO.GetHighMode())
+	fmt.Print("HighMod:", c.IO.GetHighMode())
+	fmt.Print("\n")
 	fmt.Println("")
 	fmt.Println("")
 }

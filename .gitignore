@@ -1,6 +1,7 @@
 *.ch8
-SDL2.dll
+*.dll
 chip8-test-suite/
 .vscode/
 *-amd64
 *-arm64
+*.exe

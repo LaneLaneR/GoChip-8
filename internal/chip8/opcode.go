@@ -244,8 +244,16 @@ func (c *Chip8) dOpcode(opcode uint16) {
 				pixel := (sprite >> (7 - col)) & 1 // Сдвигаем нужный бит в конец берем единичку и получаем пиксель
 
 				if pixel == 1 { // Если пиксель равен единице
-					xx := (x + col) // x + col > движение по ширине
-					yy := (y + row) // y + col > движение по высоте
+					var xx int
+					var yy int
+					mode := c.IO.HighMode
+					if !mode {
+						xx = (x + col) % 64
+						yy = (y + row) % 32
+					} else {
+						xx = (x + col) % 128 // x + col > движение по ширине
+						yy = (y + row) % 64  // y + col > движение по высоте
+					}
 					// На проценты можно не смотреть, это на случай, что если символ выйдет за границы
 					// То он вернется назад ибо поделится с остатком на 64 или 32
 
@@ -293,6 +301,8 @@ func (c *Chip8) fOpcode(opcode uint16) error {
 		c.I = sum
 	case 0x0029:
 		c.I = 0x050 + (5 * uint16(c.V[x]))
+	case 0x0030: // High font 8x10
+		return nil
 	case 0x0033:
 		integer := c.V[x]
 		hundrets := integer / 100

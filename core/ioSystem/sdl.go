@@ -168,8 +168,14 @@ func (io *IoSDL) DrawTrue() error {
 
 func (io *IoSDL) Clear() {
 	io.DrawFlag = true
-	for i, _ := range io.LowDisplay {
-		io.LowDisplay[i] = false
+	if !io.HighMode {
+		for i, _ := range io.LowDisplay {
+			io.LowDisplay[i] = false
+		}
+	} else {
+		for i, _ := range io.HighDisplay {
+			io.HighDisplay[i] = false
+		}
 	}
 }
 
@@ -187,9 +193,10 @@ func (io *IoSDL) UpdateKeys() {
 
 func (io *IoSDL) WaitKeyPress() int {
 	for {
-		keys := sdl.GetKeyboardState()
+		io.PollEvents()                // Получаем предварительно события
+		keys := sdl.GetKeyboardState() // Получаем все состояние клавиатуры
 
-		for i, v := range keymap {
+		for i, v := range keymap { // Напрямую работаем с клавиатурой, так быстрее
 			if keys[i] != 0 {
 				return v
 			}
@@ -204,7 +211,7 @@ func (io *IoSDL) GetKey(key int) bool {
 	return io.Keys[key]
 }
 
-func (io *IoSDL) PollEvents() { // Проверка на закрытие
+func (io *IoSDL) PollEvents() { // Обработка событий
 	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 		switch event.(type) {
 		case *sdl.QuitEvent:
